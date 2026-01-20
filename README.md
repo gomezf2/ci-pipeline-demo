@@ -17,7 +17,7 @@ A production style CI/CD pipeline demonstrating automated testing, building, and
 
 - Github Actions for CI/CD
 - Docker for containerization 
-- [ App language for the app ]
+- Python 
 
 ## Status 
 
