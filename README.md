@@ -1,4 +1,4 @@
-Project Purpose
+#Project Purpose
 
 This repository serves as a practical demonstration of building a production-grade CI/CD pipeline from scratch. Rather than just theory, this project showcases real-world DevOps practices through incremental, documented commits that tell the story of building automated workflows.
 Why this project exists:
@@ -8,16 +8,16 @@ To show practical DevOps skills applicable to real-world scenarios
 To practice building reliable, automated deployment pipelines
 To maintain a portfolio piece that reflects current industry standards
 
-What This Pipeline Does
+#What This Pipeline Does
 
-Current Features
+##Current Features
 
 Automated Linting: Runs flake8 on every push to catch code quality issues
 Automated Testing: Executes pytest test suite to ensure code correctness
 Continuous Integration: Validates all pull requests before merging
 Multi-stage Workflow: Demonstrates proper CI pipeline structure
 
-Roadmap
+#Roadmap
 
  Docker Build: Containerize the application and validate Dockerfile
  Image Registry: Push built images to Docker Hub
@@ -26,7 +26,7 @@ Roadmap
  Status Notifications: Add Slack/Discord notifications for build status
  Security Scanning: Integrate container vulnerability scanning
 
-Tech Stack
+#Tech Stack
 
 CI/CD: GitHub Actions
 Containerization: Docker
@@ -140,7 +140,4 @@ Share similar projects or resources
 License
 
 MIT License - feel free to use this as a template for your own CI/CD learning projects.
-Connect
 
-GitHub: gomezf2
-LinkedIn:  https://www.linkedin.com/in/francis-gomez0801/
