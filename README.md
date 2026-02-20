@@ -2,7 +2,6 @@
 
 > A practical demonstration of modern CI/CD practices using GitHub Actions and Docker
 
-[![CI Pipeline](https://github.com/gomezf2/ci-pipeline-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/gomezf2/ci-pipeline-demo/actions/workflows/ci.yml)
 
 ## Overview
 
