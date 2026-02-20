@@ -1,44 +1,54 @@
-# Project Purpose
+# CI/CD Pipeline Demo
 
-This repository serves as a practical demonstration of building a production-grade CI/CD pipeline from scratch. Rather than just theory, this project showcases real-world DevOps practices through incremental, documented commits that tell the story of building automated workflows.
-Why this project exists:
+> A practical demonstration of modern CI/CD practices using GitHub Actions and Docker
 
-To demonstrate understanding of modern CI/CD workflows
-To show practical DevOps skills applicable to real-world scenarios
-To practice building reliable, automated deployment pipelines
-To maintain a portfolio piece that reflects current industry standards
+[![CI Pipeline](https://github.com/gomezf2/ci-pipeline-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/gomezf2/ci-pipeline-demo/actions/workflows/ci.yml)
 
-# What This Pipeline Does
+## Overview
 
-## Current Features
+This repository demonstrates the implementation of a production-grade CI/CD pipeline from the ground up. The project focuses on real-world DevOps practices, with each commit documenting the development process—including troubleshooting and iterative improvements—to showcase practical problem-solving skills.
 
-Automated Linting: Runs flake8 on every push to catch code quality issues
-Automated Testing: Executes pytest test suite to ensure code correctness
-Continuous Integration: Validates all pull requests before merging
-Multi-stage Workflow: Demonstrates proper CI pipeline structure
+**Project Goals:**
+- Demonstrate proficiency with modern CI/CD workflows
+- Showcase practical DevOps skills applicable to production environments
+- Build reliable, automated deployment pipelines
+- Maintain a portfolio piece reflecting current industry standards
 
-# Roadmap
+## Current Status
 
- Docker Build: Containerize the application and validate Dockerfile
- Image Registry: Push built images to Docker Hub
- Deployment Simulation: Demonstrate deployment workflow (or actual deployment to free tier hosting)
- Versioning & Tagging: Implement semantic versioning for releases
- Status Notifications: Add Slack/Discord notifications for build status
- Security Scanning: Integrate container vulnerability scanning
+**Phase:** CI Foundation (Complete)  
+**Next Step:** Docker Integration
 
-# Tech Stack
+## Features
 
-CI/CD: GitHub Actions
-Containerization: Docker
-Language: Python 3.9
-Testing: pytest, pytest-flask
-Code Quality: flake8
-Framework: Flask (simple web app)
+### Implemented
+- **Automated Linting:** Code quality checks with `flake8` on every push
+- **Automated Testing:** Full test suite execution with `pytest`
+- **Continuous Integration:** Automated validation of all pull requests
+- **Multi-stage Workflow:** Production-ready pipeline structure
 
-Pipeline Workflow
+### Planned
+- Docker containerization and build validation
+- Docker Hub registry integration
+- Semantic versioning and release tagging
+- Build status notifications (Slack/Discord)
+- Container security scanning
 
-mermaidgraph LR
+## Tech Stack
 
+| Component | Technology |
+|-----------|-----------|
+| CI/CD | GitHub Actions |
+| Containerization | Docker |
+| Language | Python 3.9 |
+| Testing | pytest, pytest-flask |
+| Code Quality | flake8 |
+| Framework | Flask |
+
+## Pipeline Architecture
+
+```mermaid
+graph LR
     A[Push to GitHub] --> B[Checkout Code]
     B --> C[Setup Python]
     C --> D[Install Dependencies]
@@ -49,29 +59,35 @@ mermaidgraph LR
     G -->|No| I[Pipeline Fails]
     H --> J[Push to Registry]
     J --> K[Deploy/Notify]
+```
 
-Project Structure
+## Project Structure
 
+```
 ci-pipeline-demo/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml          # GitHub Actions workflow
+│       └── ci.yml          # GitHub Actions workflow configuration
+├── app/
+│   ├── __init__.py         # Package initialization
+│   └── app.py              # Flask application
 ├── tests/
-│   └── test_app.py         # Application tests
-├── app.py                  # Simple Flask application
+│   └── test_app.py         # Application test suite
 ├── requirements.txt        # Python dependencies
 ├── Dockerfile              # Container definition (coming soon)
-└── README.md              # This file
+└── README.md               # Project documentation
+```
 
-Local Development
+## Local Development
 
-Prerequisites
+### Prerequisites
+- Python 3.9 or higher
+- pip package manager
 
-Python 3.9+
-pip
+### Setup Instructions
 
-Setup
-bash# Clone the repository
+```bash
+# Clone the repository
 git clone https://github.com/gomezf2/ci-pipeline-demo.git
 cd ci-pipeline-demo
 
@@ -84,60 +100,57 @@ pytest
 # Run linter
 flake8 .
 
-# Run the application
-python app.py
-Current Status
-Phase: Building CI Foundation (Complete)
-Next Step: Docker Integration
-This project is being built incrementally with clear, descriptive commits to demonstrate:
+# Start the application
+python app/app.py
+```
 
-Problem-solving process
-Debugging CI/CD issues
-Best practices in workflow design
-Documentation and communication skills
+The application will be available at `http://localhost:5000`
 
-Learning Objectives
-Through this project, I'm demonstrating knowledge of:
+## Learning Outcomes
 
-CI/CD Fundamentals
+This project demonstrates proficiency in several key areas:
 
-Pipeline design and implementation
-Automated testing and validation
-Build automation
+**CI/CD Fundamentals**
+- Pipeline design and implementation
+- Automated testing and validation
+- Build automation
 
+**DevOps Practices**
+- Infrastructure as Code (GitHub Actions YAML)
+- Containerization with Docker
+- Environment configuration management
 
-DevOps Practices
+**Software Engineering**
+- Test-driven development
+- Code quality enforcement
+- Version control best practices
 
-Infrastructure as Code (GitHub Actions YAML)
-Containerization with Docker
-Environment management
+## Technical Decisions
 
+### Import Path Configuration
+**Challenge:** `pytest` encountered `ModuleNotFoundError` in CI environment  
+**Solution:** Added `PYTHONPATH` environment variable to GitHub Actions workflow  
+**Key Lesson:** CI environments require explicit Python path configuration
 
-Software Engineering
+### Dependency Management
+**Decision:** Single `requirements.txt` file  
+**Rationale:** Simplified dependency management for demonstration project  
+**Trade-off:** Development dependencies installed in all environments (production would use separate requirements files)
 
-Test-driven development
-Code quality enforcement
-Version control best practices
+*Additional learnings and decisions will be documented as the project evolves*
 
+## Contributing
 
+While this is primarily a personal learning project, feedback and suggestions are welcome. Feel free to:
+- Open an issue for discussion
+- Suggest pipeline improvements
+- Share related projects or resources
 
-Key Learnings & Decisions
+## License
 
-Problem: pytest ImportError in CI
-Solution: Added PYTHONPATH environment variable to workflow
-Lesson: CI environments require explicit Python path configuration
-Decision: Single requirements.txt
-Rationale: Simplicity for demo project; would split for production
-Trade-off: Installs dev dependencies in all environments
-(More learnings will be documented as the project progresses)
-Contributing
-While this is primarily a personal learning project, suggestions and feedback are welcome! Feel free to:
+MIT License - This project is open source and available for use as a template for CI/CD learning projects.
 
-Open an issue for discussion
-Suggest improvements to the pipeline
-Share similar projects or resources
+---
 
-License
-
-MIT License - feel free to use this as a template for your own CI/CD learning projects.
+**Note:** This is an active learning project. The commit history intentionally reflects the real development process, including debugging and iterations, to demonstrate practical problem-solving skills in DevOps engineering.
 
