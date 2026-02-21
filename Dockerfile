@@ -15,7 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # copy the applications code to working directory
-COPY ..
+COPY . .
 
 # make port 8080 available to see to the outside
 EXPOSE 8080
