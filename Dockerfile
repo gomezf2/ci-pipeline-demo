@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # copy the requirements first
-COPY requirements.txt
+COPY requirements.txt .
 
 # install dependencies 
 RUN pip install --no-cache-dir -r requirements.txt
@@ -24,7 +24,7 @@ EXPOSE 8080
 ENV FLASK_APP app/app.py
 
 # run app when container launches
-RUN ["python", "app.py"]
+CMD ["python", "app.py"]
 
 
 
