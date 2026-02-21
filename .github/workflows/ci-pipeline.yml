@@ -35,6 +35,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: cache trivy vulnerability database
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/trivy
+        key: ${{ runner.os }}-trivy-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-trivy-
+
     - name: run trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
