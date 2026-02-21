@@ -35,6 +35,24 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: cache trivy vulnerability database
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/trivy
+        key: ${{ runner.os }}-trivy-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-trivy-
+
+    - name: run trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
