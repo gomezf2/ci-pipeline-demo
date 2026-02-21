@@ -35,6 +35,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: run trivy vulnerability scanner
+      uses: aqausecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        severity: 'CRITICAL,HIGH'
+
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
