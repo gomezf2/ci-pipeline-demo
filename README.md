@@ -2,6 +2,8 @@
 
 > A practical demonstration of modern CI/CD practices using GitHub Actions and Docker
 
+```markdown
+![CI Pipeline](https://github.com/gomezf2/ci-pipeline-demo/actions/workflows/ci-pipeline.yml/badge.svg)
 
 ## Overview
 
@@ -15,8 +17,8 @@ This repository demonstrates the implementation of a production-grade CI/CD pipe
 
 ## Current Status
 
-**Phase:** CI Foundation (Complete)  
-**Next Step:** Docker Integration
+**Phase:** Continuous Delivery & Containerization (Complete)
+**Next Step:** Multi-stage Docker builds or Kubernetes Orchestration
 
 ## Features
 
@@ -39,6 +41,9 @@ This repository demonstrates the implementation of a production-grade CI/CD pipe
 |-----------|-----------|
 | CI/CD | GitHub Actions |
 | Containerization | Docker |
+| Container registry | GitHub Container Registry (GHCR) |
+| Vulnerability Scanning | Trivy (Aqua Security) |
+| Build Engine | Docker Buildx (BuildKit) |
 | Language | Python 3.9 |
 | Testing | pytest, pytest-flask |
 | Code Quality | flake8 |
@@ -48,16 +53,32 @@ This repository demonstrates the implementation of a production-grade CI/CD pipe
 
 ```mermaid
 graph LR
-    A[Push to GitHub] --> B[Checkout Code]
-    B --> C[Setup Python]
-    C --> D[Install Dependencies]
-    D --> E[Lint with flake8]
-    E --> F[Run pytest Tests]
-    F --> G{Tests Pass?}
-    G -->|Yes| H[Build Docker Image]
-    G -->|No| I[Pipeline Fails]
-    H --> J[Push to Registry]
-    J --> K[Deploy/Notify]
+    %% Section 1: Continuous Integration
+    subgraph CI [Continuous Integration]
+        A[Push to GitHub] --> B[Checkout Code]
+        B --> C[Setup Python & Deps]
+        C --> D[Lint & Pytest]
+        D --> E[Trivy Security Scan]
+    end
+
+    %% Section 2: Logic Gate
+    E --> F{Gate Pass?}
+
+    %% Section 3: Continuous Delivery
+    subgraph CD [Continuous Delivery]
+        F -->|Yes| G[Extract Metadata]
+        G --> H[Build Image via Buildx]
+        H --> I[Push to GHCR]
+    end
+
+    %% Section 4: Failure Path
+    F -->|No| J[Pipeline Fails]
+
+    %% Styling
+    style CI fill:#f9f,stroke:#333,stroke-width:2px
+    style CD fill:#bbf,stroke:#333,stroke-width:2px
+    style J fill:#f66,stroke:#333,stroke-style:dashed
+    style I fill:#6f6,stroke:#333,stroke-width:4px
 ```
 
 ## Project Structure
@@ -125,6 +146,15 @@ This project demonstrates proficiency in several key areas:
 - Version control best practices
 
 ## Technical Decisions
+
+### Automated Tagging Strategy
+**Challenge:** Manually versioning Docker images is prone to error.
+**Solution:** Implemented `docker/metadata-action` to generate dynamic tags based on Git SHAs and branch names.
+**Outcome:** Every image in the registry is perfectly traceable back to the specific line of code that created it.
+
+### Build Optimization
+**Decision:** Using `type=gha` cache backend.
+**Rationale:** Standard Docker builds in CI environments start from scratch every time. By using GitHub Actions caching, we reduced build times by reusing layers from previous runs.
 
 ### Import Path Configuration
 **Challenge:** `pytest` encountered `ModuleNotFoundError` in CI environment  
