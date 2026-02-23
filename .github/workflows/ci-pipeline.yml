@@ -9,6 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
     
     defaults:
       run:
@@ -65,3 +69,13 @@ jobs:
         PYTHONPATH: ${{ github.workspace }}
       run: |
         pytest
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-actions@v3
+
+    - name: Log in to GHCR
+      uses: docker/login-actions@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
