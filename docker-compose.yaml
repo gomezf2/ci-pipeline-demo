@@ -5,3 +5,5 @@ services:
     networks:
       - jenkins
     environment:
+      - jenkins-docker-certs:/certs/client
+      - jenkins-data:/var/jenins_home
