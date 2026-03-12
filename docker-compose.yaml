@@ -7,3 +7,25 @@ services:
     environment:
       - jenkins-docker-certs:/certs/client
       - jenkins-data:/var/jenins_home
+
+jenkins-controller:
+  image: jenkins:jenkins/lts
+  networks:
+    - jenkins
+  environmnet:
+    - DOCKER_HOST=tcp://docker:2376
+    - DOCKER_CERT=/certs/clients
+    - DOCKER_TLS_VERIFY=1
+  ports:
+    - "8080:8080"
+    - "50000:50000"
+  volumes:
+    - jenkins-data:/var/jenkins_home
+    - jenkins-docker-certs:/certs/client-ro
+
+networks:
+  jenkins:
+
+volumes:
+  jenkins-data:
+  jenkins-docker-certs:
