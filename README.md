@@ -1,53 +1,20 @@
 # CI/CD Pipeline Demo
 
-> A practical demonstration of modern CI/CD practices using GitHub Actions and Docker
-
+> A production-grade CI/CD pipeline built with GitHub Actions and Docker, demonstrating deliberate architectural decisions across automated testing, container security, and artifact traceability.
 
 ![CI Pipeline](https://github.com/gomezf2/ci-pipeline-demo/actions/workflows/ci-pipeline.yml/badge.svg)
 
+---
+
 ## Overview
 
-This repository demonstrates the implementation of a production-grade CI/CD pipeline from the ground up. The project focuses on real-world DevOps practices, with each commit documenting the development process—including troubleshooting and iterative improvements—to showcase practical problem-solving skills.
+This repository implements a multi-stage CI/CD pipeline from the ground up. Each stage has a distinct responsibility — linting, testing, security scanning, building, and publishing are deliberately separated so that failures are immediately attributable and the pipeline remains easy to reason about as it grows.
 
-**Project Goals:**
-- Demonstrate proficiency with modern CI/CD workflows
-- Showcase practical DevOps skills applicable to production environments
-- Build reliable, automated deployment pipelines
-- Maintain a portfolio piece reflecting current industry standards
+The commit history reflects the real development process, including debugging and iterations, to demonstrate practical problem-solving rather than a clean-room tutorial reproduction.
 
-## Current Status
+**Current Status:** Core pipeline complete. Next planned extension: multi-stage Docker builds to separate build-time and runtime dependencies, reducing final image size and shrinking the Trivy scan surface.
 
-**Phase:** Continuous Delivery & Containerization (Complete)
-**Next Step:** Multi-stage Docker builds or Kubernetes Orchestration
-
-## Features
-
-### Implemented
-- **Automated Linting:** Code quality checks with `flake8` on every push
-- **Automated Testing:** Full test suite execution with `pytest`
-- **Continuous Integration:** Automated validation of all pull requests
-- **Multi-stage Workflow:** Production-ready pipeline structure
-
-### Planned
-- Docker containerization and build validation
-- Docker Hub registry integration
-- Semantic versioning and release tagging
-- Build status notifications (Slack/Discord)
-- Container security scanning
-
-## Tech Stack
-
-| Component | Technology |
-|-----------|-----------|
-| CI/CD | GitHub Actions |
-| Containerization | Docker |
-| Container registry | GitHub Container Registry (GHCR) |
-| Vulnerability Scanning | Trivy (Aqua Security) |
-| Build Engine | Docker Buildx (BuildKit) |
-| Language | Python 3.9 |
-| Testing | pytest, pytest-flask |
-| Code Quality | flake8 |
-| Framework | Flask |
+---
 
 ## Pipeline Architecture
 
@@ -81,30 +48,102 @@ graph LR
     style I fill:#6f6,stroke:#333,stroke-width:4px
 ```
 
+---
+
+## Tech Stack
+
+| Component | Technology | Purpose |
+|---|---|---|
+| CI/CD | GitHub Actions | Workflow orchestration |
+| Containerisation | Docker / Buildx | Reproducible builds |
+| Container Registry | GitHub Container Registry (GHCR) | Artifact storage and versioning |
+| Vulnerability Scanning | Trivy (Aqua Security) | Shift-left container security |
+| Language | Python 3.9 / Flask | Application under test |
+| Testing | pytest, pytest-flask | Automated correctness validation |
+| Code Quality | flake8 | Style and syntax enforcement |
+
+---
+
+## Technical Decisions
+
+### Stage Separation
+**Problem:** Collapsing lint, test, scan and build into a single stage makes failures ambiguous — a security issue looks the same as a syntax error in the logs.
+
+**Decision:** Each concern runs as a distinct stage with an explicit pass/fail gate.
+
+**Outcome:** Any failure is immediately attributable to a specific stage, reducing the time to diagnose a broken pipeline and making the system easier to extend without unintended side effects.
+
+---
+
+### Automated Tagging Strategy
+**Problem:** Manually versioning Docker images is prone to error and makes it difficult to trace a running container back to the exact code that produced it.
+
+**Solution:** Implemented `docker/metadata-action` to generate dynamic tags derived from Git SHAs and branch names automatically.
+
+**Outcome:** Every image in the registry maps 1:1 to a specific commit. Rollbacks and incident root-cause analysis become deterministic — you always know exactly what code is running in any environment.
+
+---
+
+### Security Gate Placement
+**Problem:** Discovering container vulnerabilities after an image is published means the fix requires a new build, re-test, and re-publish cycle — higher cost and higher risk than catching it earlier.
+
+**Decision:** Trivy scans the filesystem before the publish stage. Critical findings block the pipeline entirely rather than producing a warning.
+
+**Outcome:** No image reaches the registry unless it has passed a security audit, shifting that responsibility left into the development workflow rather than downstream into operations.
+
+---
+
+### Build Optimisation
+**Decision:** Using `type=gha` cache backend with Docker Buildx.
+
+**Rationale:** CI environments rebuild from scratch on every run by default. Layer caching means only the layers affected by a code change are rebuilt, reducing pipeline execution time and improving the feedback loop.
+
+**Trade-off:** Cache hit rate depends on layer ordering in the Dockerfile. Dependencies are installed before application code is copied specifically to maximise cache reuse on code-only changes.
+
+---
+
+### Import Path Configuration
+**Problem:** `pytest` raised `ModuleNotFoundError` in the CI environment despite tests passing locally.
+
+**Root cause:** CI environments do not inherit local Python path configuration. The project root was not on `PYTHONPATH` in the runner.
+
+**Solution:** Explicitly set the `PYTHONPATH` environment variable in the GitHub Actions workflow.
+
+**Key lesson:** CI environments must be treated as clean, explicit systems. Implicit local configuration is never safe to rely on.
+
+---
+
+### Dependency Management
+**Decision:** Single `requirements.txt` file.
+
+**Rationale:** Simplified dependency management appropriate for a demonstration project.
+
+**Trade-off acknowledged:** Development dependencies (pytest, flake8) are installed in all environments. In a production setup this would be split into `requirements.txt` and `requirements-dev.txt` to keep the production image lean. Kept unified here to reduce setup friction.
+
+---
+
 ## Project Structure
 
 ```
 ci-pipeline-demo/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml          # GitHub Actions workflow configuration
+│       └── ci.yml          # Pipeline definition
 ├── app/
-│   ├── __init__.py         # Package initialization
+│   ├── __init__.py         # Package initialisation
 │   └── app.py              # Flask application
 ├── tests/
-│   └── test_app.py         # Application test suite
+│   └── test_app.py         # Test suite
+├── Dockerfile              # Container definition
 ├── requirements.txt        # Python dependencies
-├── Dockerfile              # Container definition (coming soon)
-└── README.md               # Project documentation
+└── README.md
 ```
 
-## Local Development
+---
 
-### Prerequisites
-- Python 3.9 or higher
-- pip package manager
+## Running Locally
 
-### Setup Instructions
+**Prerequisites:** Python 3.9+, Docker
 
 ```bash
 # Clone the repository
@@ -120,66 +159,25 @@ pytest
 # Run linter
 flake8 .
 
-# Start the application
-python app/app.py
+# Build and run the container directly
+docker build -t ci-pipeline-demo .
+docker run -p 5000:5000 ci-pipeline-demo
 ```
 
 The application will be available at `http://localhost:5000`
 
-## Learning Outcomes
+---
 
-This project demonstrates proficiency in several key areas:
+## What I Would Add Next
 
-**CI/CD Fundamentals**
-- Pipeline design and implementation
-- Automated testing and validation
-- Build automation
-
-**DevOps Practices**
-- Infrastructure as Code (GitHub Actions YAML)
-- Containerization with Docker
-- Environment configuration management
-
-**Software Engineering**
-- Test-driven development
-- Code quality enforcement
-- Version control best practices
-
-## Technical Decisions
-
-### Automated Tagging Strategy
-**Challenge:** Manually versioning Docker images is prone to error.
-**Solution:** Implemented `docker/metadata-action` to generate dynamic tags based on Git SHAs and branch names.
-**Outcome:** Every image in the registry is perfectly traceable back to the specific line of code that created it.
-
-### Build Optimization
-**Decision:** Using `type=gha` cache backend.
-**Rationale:** Standard Docker builds in CI environments start from scratch every time. By using GitHub Actions caching, we reduced build times by reusing layers from previous runs.
-
-### Import Path Configuration
-**Challenge:** `pytest` encountered `ModuleNotFoundError` in CI environment  
-**Solution:** Added `PYTHONPATH` environment variable to GitHub Actions workflow  
-**Key Lesson:** CI environments require explicit Python path configuration
-
-### Dependency Management
-**Decision:** Single `requirements.txt` file  
-**Rationale:** Simplified dependency management for demonstration project  
-**Trade-off:** Development dependencies installed in all environments (production would use separate requirements files)
-
-*Additional learnings and decisions will be documented as the project evolves*
-
-## Contributing
-
-While this is primarily a personal learning project, feedback and suggestions are welcome. Feel free to:
-- Open an issue for discussion
-- Suggest pipeline improvements
-- Share related projects or resources
-
-## License
-
-MIT License - This project is open source and available for use as a template for CI/CD learning projects.
+**Multi-stage Docker builds** — separating the build stage (which needs dev tools) from the runtime stage (which only needs the application) would meaningfully reduce the final image size and shrink the attack surface that Trivy has to scan. This is the logical next extension given the security-first approach already in place.
 
 ---
 
-**Note:** This is an active learning project. The commit history intentionally reflects the real development process, including debugging and iterations, to demonstrate practical problem-solving skills in DevOps engineering.
+## Feedback
 
+This is an active project. If you spot an architectural decision that could be improved or have suggestions on the pipeline design, feel free to open an issue — reasoned critique is welcome.
+
+---
+
+*MIT License — open source and available as a reference for CI/CD pipeline implementations.*
