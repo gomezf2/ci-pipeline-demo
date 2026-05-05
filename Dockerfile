@@ -24,7 +24,7 @@ EXPOSE 8080
 ENV FLASK_APP app/app.py
 
 # run app when container launches
-CMD ["python", "app.py"]
+CMD ["python", "app/app.py"]
 
 
 
