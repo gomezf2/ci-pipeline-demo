@@ -8,7 +8,7 @@
 
 ## Overview
 
-This repository implements a multi-stage CI/CD pipeline from the ground up. Each stage has a distinct responsibility — linting, testing, security scanning, building, and publishing are deliberately separated so that failures are immediately attributable and the pipeline remains easy to reason about as it grows.
+This repository implements a multi-stage CI/CD pipeline from the ground up. Each concern - linting, testing, security scanning, building, and publishing - runs as a **separate GitHub Actions job** with explicit `needs:` dependencies, so failures are immediately attributable and the pipeline remains easy to reason about as it grows.
 
 The commit history reflects the real development process, including debugging and iterations, to demonstrate practical problem-solving rather than a clean-room tutorial reproduction.
 
@@ -20,33 +20,31 @@ The commit history reflects the real development process, including debugging an
 
 ```mermaid
 graph LR
-    %% Section 1: Continuous Integration
     subgraph CI [Continuous Integration]
-        A[Push to GitHub] --> B[Checkout Code]
-        B --> C[Setup Python & Deps]
-        C --> D[Lint & Pytest]
-        D --> E[Trivy Security Scan]
+        A[Push to GitHub] --> B[Lint\nflake8]
+        B --> C[Test\npytest]
+        C --> D[Security Scan\nTrivy]
     end
 
-    %% Section 2: Logic Gate
-    E --> F{Gate Pass?}
+    D --> E{Gate Pass?}
 
-    %% Section 3: Continuous Delivery
     subgraph CD [Continuous Delivery]
-        F -->|Yes| G[Extract Metadata]
-        G --> H[Build Image via Buildx]
-        H --> I[Push to GHCR]
+        E -->|Yes| F[Extract Metadata\ndocker/metadata-action]
+        F --> G[Build Image\nDocker Buildx]
+        G --> H[Push to GHCR]
     end
 
-    %% Section 4: Failure Path
-    F -->|No| J[Pipeline Fails]
+    E -->|No| I[Pipeline Fails]
 
-    %% Styling
     style CI fill:#f9f,stroke:#333,stroke-width:2px
     style CD fill:#bbf,stroke:#333,stroke-width:2px
-    style J fill:#f66,stroke:#333,stroke-style:dashed
-    style I fill:#6f6,stroke:#333,stroke-width:4px
+    style I fill:#f66,stroke:#333,stroke-style:dashed
+    style H fill:#6f6,stroke:#333,stroke-width:4px
 ```
+
+**Job dependency chain:** `lint` → `test` → `scan` → `build-and-push`
+
+Each job runs on a fresh runner and only starts if the previous job passes. This means the cheapest checks run first - a syntax error caught by flake8 in 30 seconds stops the pipeline before pytest, Trivy, or Docker ever run.
 
 ---
 
@@ -66,50 +64,59 @@ graph LR
 
 ## Technical Decisions
 
-### Stage Separation
-**Problem:** Collapsing lint, test, scan and build into a single stage makes failures ambiguous — a security issue looks the same as a syntax error in the logs.
+### Job Separation
+**Problem:** A single monolithic job makes failures ambiguous - a security finding looks identical to a syntax error in the logs. Permissions are also broader than necessary when everything runs in one context.
 
-**Decision:** Each concern runs as a distinct stage with an explicit pass/fail gate.
+**Decision:** Split into four discrete jobs (`lint`, `test`, `scan`, `build-and-push`) connected via `needs:` dependencies. The `packages: write` permission is scoped exclusively to the `build-and-push` job - no other job needs registry access.
 
-**Outcome:** Any failure is immediately attributable to a specific stage, reducing the time to diagnose a broken pipeline and making the system easier to extend without unintended side effects.
+**Outcome:** Any failure is immediately attributable to a specific job. The principle of least privilege is enforced at the job level. The pipeline is straightforward to extend - adding a new stage means adding a new job, not modifying a monolithic step list.
+
+---
+
+### Fast-Fail Ordering
+**Problem:** Running expensive operations (Docker builds, security scans) before cheap ones (linting) wastes CI minutes and slows developer feedback.
+
+**Decision:** Jobs are ordered by cost - lint first, then test, then security scan, then build and push. The pipeline exits at the first failure without running downstream jobs.
+
+**Outcome:** A syntax error is caught in under 30 seconds. A developer never waits for a Docker build to complete only to discover a flake8 violation.
 
 ---
 
 ### Automated Tagging Strategy
-**Problem:** Manually versioning Docker images is prone to error and makes it difficult to trace a running container back to the exact code that produced it.
+**Problem:** Manually versioning Docker images is error-prone and makes it difficult to trace a running container back to the exact code that produced it.
 
-**Solution:** Implemented `docker/metadata-action` to generate dynamic tags derived from Git SHAs and branch names automatically.
+**Decision:** `docker/metadata-action` generates dynamic tags derived from Git SHAs and branch names automatically on every push.
 
-**Outcome:** Every image in the registry maps 1:1 to a specific commit. Rollbacks and incident root-cause analysis become deterministic — you always know exactly what code is running in any environment.
+**Outcome:** Every image in the registry maps 1:1 to a specific commit. Rollbacks and incident root-cause analysis become deterministic - you always know exactly what code is running in any environment.
 
 ---
 
 ### Security Gate Placement
-**Problem:** Discovering container vulnerabilities after an image is published means the fix requires a new build, re-test, and re-publish cycle — higher cost and higher risk than catching it earlier.
+**Problem:** Discovering container vulnerabilities after an image is published requires a new build, re-test, and re-publish cycle - higher cost and higher risk than catching it earlier.
 
-**Decision:** Trivy scans the filesystem before the publish stage. Critical findings block the pipeline entirely rather than producing a warning.
+**Decision:** Trivy scans the filesystem before the publish stage. CRITICAL and HIGH severity findings hard-fail the pipeline via `exit-code: '1'`. No image reaches the registry unless it has passed a security audit.
 
-**Outcome:** No image reaches the registry unless it has passed a security audit, shifting that responsibility left into the development workflow rather than downstream into operations.
+**Outcome:** Security responsibility is shifted left into the development workflow rather than downstream into operations.
 
 ---
 
 ### Build Optimisation
-**Decision:** Using `type=gha` cache backend with Docker Buildx.
+**Decision:** `type=gha` cache backend with Docker Buildx for layer caching. Pip dependencies cached separately, keyed on the hash of `requirements.txt`.
 
-**Rationale:** CI environments rebuild from scratch on every run by default. Layer caching means only the layers affected by a code change are rebuilt, reducing pipeline execution time and improving the feedback loop.
+**Rationale:** CI environments rebuild from scratch on every run by default. Layer caching means only layers affected by a code change are rebuilt. The Dockerfile deliberately installs dependencies before copying application code to maximise cache reuse on code-only changes.
 
-**Trade-off:** Cache hit rate depends on layer ordering in the Dockerfile. Dependencies are installed before application code is copied specifically to maximise cache reuse on code-only changes.
+**Outcome:** Redundant rebuilds are eliminated on pushes that only change application logic, reducing pipeline execution time and improving the feedback loop.
 
 ---
 
 ### Import Path Configuration
-**Problem:** `pytest` raised `ModuleNotFoundError` in the CI environment despite tests passing locally.
+**Problem:** `pytest` raised `ModuleNotFoundError` in CI despite tests passing locally.
 
-**Root cause:** CI environments do not inherit local Python path configuration. The project root was not on `PYTHONPATH` in the runner.
+**Root cause:** CI runners do not inherit local Python path configuration. The project root was not on `PYTHONPATH` in the runner environment.
 
-**Solution:** Explicitly set the `PYTHONPATH` environment variable in the GitHub Actions workflow.
+**Solution:** Explicitly set `PYTHONPATH: ${{ github.workspace }}` as an environment variable in the test job.
 
-**Key lesson:** CI environments must be treated as clean, explicit systems. Implicit local configuration is never safe to rely on.
+**Key lesson:** CI environments must be treated as clean, explicit systems. Implicit local configuration cannot be relied upon.
 
 ---
 
@@ -118,7 +125,14 @@ graph LR
 
 **Rationale:** Simplified dependency management appropriate for a demonstration project.
 
-**Trade-off acknowledged:** Development dependencies (pytest, flake8) are installed in all environments. In a production setup this would be split into `requirements.txt` and `requirements-dev.txt` to keep the production image lean. Kept unified here to reduce setup friction.
+**Trade-off acknowledged:** Development dependencies (pytest, flake8) are installed in all environments. In a production setup this would be split into `requirements.txt` and `requirements-dev.txt` to keep the production image lean. Kept unified here to reduce setup friction for anyone running the project locally.
+
+---
+
+### Debug Mode Configuration
+**Decision:** Flask's debug mode is controlled via the `FLASK_DEBUG` environment variable rather than being hardcoded.
+
+**Rationale:** Hardcoding `debug=True` in application code is a security risk - the Werkzeug debugger exposes an interactive console if the debug PIN is obtained. Externalising this via an environment variable means the container runs in safe mode by default, with debug capability available locally when explicitly set.
 
 ---
 
@@ -128,14 +142,14 @@ graph LR
 ci-pipeline-demo/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml          # Pipeline definition
+│       └── ci-pipeline.yml   # Pipeline definition
 ├── app/
-│   ├── __init__.py         # Package initialisation
-│   └── app.py              # Flask application
+│   ├── __init__.py           # Package initialisation
+│   └── app.py                # Flask application
 ├── tests/
-│   └── test_app.py         # Test suite
-├── Dockerfile              # Container definition
-├── requirements.txt        # Python dependencies
+│   └── test_app.py           # Test suite
+├── Dockerfile                # Container definition
+├── requirements.txt          # Python dependencies
 └── README.md
 ```
 
@@ -159,25 +173,30 @@ pytest
 # Run linter
 flake8 .
 
-# Build and run the container directly
+# Build and run the container
 docker build -t ci-pipeline-demo .
-docker run -p 5000:5000 ci-pipeline-demo
+docker run -p 8080:8080 ci-pipeline-demo
 ```
 
-The application will be available at `http://localhost:5000`
+The application will be available at `http://localhost:8080`
+
+**Endpoints:**
+- `GET /` - returns service status and version
+- `GET /health` - health check endpoint
+- `GET /info` - returns environment and runtime information
 
 ---
 
 ## What I Would Add Next
 
-**Multi-stage Docker builds** — separating the build stage (which needs dev tools) from the runtime stage (which only needs the application) would meaningfully reduce the final image size and shrink the attack surface that Trivy has to scan. This is the logical next extension given the security-first approach already in place.
+**Multi-stage Docker builds** - separating the build stage (which needs dev tools) from the runtime stage (which only needs the application binary) would meaningfully reduce the final image size and shrink the attack surface that Trivy has to scan. This is the logical next extension given the security-first approach already in place.
 
 ---
 
 ## Feedback
 
-This is an active project. If you spot an architectural decision that could be improved or have suggestions on the pipeline design, feel free to open an issue — reasoned critique is welcome.
+This is an active project. If you spot an architectural decision that could be improved or have suggestions on the pipeline design, feel free to open an issue - reasoned critique is welcome.
 
 ---
 
-*MIT License — open source and available as a reference for CI/CD pipeline implementations.*
+*MIT License - open source and available as a reference for CI/CD pipeline implementations.*
